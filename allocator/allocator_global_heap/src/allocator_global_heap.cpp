@@ -1,49 +1,78 @@
-#include <not_implemented.h>
+#include <new>
+#include <limits> 
 #include "../include/allocator_global_heap.h"
 
-allocator_global_heap::allocator_global_heap()
+allocator_global_heap::allocator_global_heap(): smart_mem_resource(), allocator_dbg_helper()
 {
-    throw not_implemented("allocator_global_heap::allocator_global_heap()", "your code should be here...");
 }
 
 [[nodiscard]] void *allocator_global_heap::do_allocate_sm(
     size_t size)
 {
-    throw not_implemented("[[nodiscard]] void *allocator_global_heap::do_allocate_sm(size_t)", "your code should be here...");
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (!size) {
+        return nullptr;
+    }
+
+    if (size > std::numeric_limits<size_t>::max()) {
+        throw std::bad_alloc();
+    }
+
+    void *ptr = ::operator new(size, std::nothrow);
+    if (!ptr) {
+        throw std::bad_alloc();
+    }
+
+    return ptr;
 }
 
 void allocator_global_heap::do_deallocate_sm(
     void *at)
 {
-    throw not_implemented("void allocator_global_heap::do_deallocate_sm(void *)", "your code should be here...");
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (!at) {
+        return;
+    }
+
+    ::operator delete(at, std::nothrow);
 }
 
 allocator_global_heap::~allocator_global_heap()
 {
-    throw not_implemented("allocator_global_heap::~allocator_global_heap()", "your code should be here...");
 }
 
-allocator_global_heap::allocator_global_heap(const allocator_global_heap &other)
+allocator_global_heap::allocator_global_heap(const allocator_global_heap &other): 
+smart_mem_resource(other), allocator_dbg_helper(other), m_mutex() 
 {
-    throw not_implemented("allocator_global_heap::allocator_global_heap(const allocator_global_heap &other)", "your code should be here...");
 }
 
 allocator_global_heap &allocator_global_heap::operator=(const allocator_global_heap &other)
 {
-    throw not_implemented("allocator_global_heap &allocator_global_heap::operator=(const allocator_global_heap &other)", "your code should be here...");
+    if (this != &other) {
+        smart_mem_resource::operator=(other);
+        allocator_dbg_helper::operator=(other);
+    }
+
+    return *this;
 }
 
 bool allocator_global_heap::do_is_equal(const std::pmr::memory_resource &other) const noexcept
 {
-    throw not_implemented("bool allocator_global_heap::do_is_equal(const std::pmr::memory_resource &other) const noexcept", "your code should be here...");
+    const auto* other_alloc = dynamic_cast<const allocator_global_heap*>(&other);
+    return other_alloc != nullptr;
 }
 
-allocator_global_heap::allocator_global_heap(allocator_global_heap &&other) noexcept
+allocator_global_heap::allocator_global_heap(allocator_global_heap &&other) noexcept:
+smart_mem_resource(std::move(other)), allocator_dbg_helper(std::move(other)), m_mutex()
 {
-    throw not_implemented("allocator_global_heap::allocator_global_heap(allocator_global_heap &&) noexcept", "your code should be here...");
 }
 
 allocator_global_heap &allocator_global_heap::operator=(allocator_global_heap &&other) noexcept
 {
-    throw not_implemented("allocator_global_heap &allocator_global_heap::operator=(allocator_global_heap &&) noexcept", "your code should be here...");
+    if (this != &other) {
+        smart_mem_resource::operator=(std::move(other));
+        allocator_dbg_helper::operator=(std::move(other));
+    }
+
+    return *this;
 }
