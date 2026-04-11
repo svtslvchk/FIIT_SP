@@ -123,8 +123,8 @@ allocator_boundary_tags::allocator_boundary_tags(
     block_metadata *target_block = nullptr;
     block_metadata *current = reinterpret_cast<block_metadata *>(meta->first_block);
 
-    size_t best_size = static_cast<size_t>(-1); // Самое большое число для старта Best Fit
-    size_t worst_size = 0;                      // Ноль для старта Worst Fit
+    size_t best_size = static_cast<size_t>(-1);
+    size_t worst_size = 0;
 
     while (current != nullptr) {
         size_t cur_sz = get_size(current->size_and_flag);
