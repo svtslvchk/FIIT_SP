@@ -187,13 +187,62 @@ allocator_boundary_tags::allocator_boundary_tags(
 void allocator_boundary_tags::do_deallocate_sm(
     void *at)
 {
-    throw not_implemented("void allocator_boundary_tags::do_deallocate_sm(void *)", "your code should be here...");
+    if (at == nullptr) {
+        return;
+    }
+
+    auto *meta = reinterpret_cast<allocator_metadata *>(_trusted_memory);
+    std::lock_guard<std::mutex> lock(meta->sync);
+    size_t block_meta_sz = align_size(sizeof(block_metadata));
+    auto *cur_block = reinterpret_cast<block_metadata *>(
+        static_cast<std::byte *>(at) - block_meta_sz
+    );
+
+    if (cur_block->trusted_memory != _trusted_memory) {
+        return;
+    }
+
+    // флаг
+    size_t cur_sz = get_size(cur_block->size_and_flag);
+    cur_block->size_and_flag = pack_size_and_flag(cur_sz, false);
+
+    // склейка с правым
+    if (cur_block->next_block) {
+        auto *next = reinterpret_cast<block_metadata *>(cur_block->next_block);
+
+        if (!is_occupied(next->size_and_flag)) {
+            cur_sz += get_size(next->size_and_flag);
+            cur_block->size_and_flag = pack_size_and_flag(cur_sz, false);
+            cur_block->next_block = next->next_block;
+            if (next->next_block) {
+                reinterpret_cast<block_metadata *>(next->next_block)->prev_block = cur_block;
+            }
+        }
+    }
+
+    // склейка с левым
+    if (cur_block->prev_block) {
+        auto *prev = reinterpret_cast<block_metadata *>(cur_block->prev_block);
+        if (!is_occupied(prev->size_and_flag)) {
+            size_t prev_sz = get_size(prev->size_and_flag);
+            prev_sz += cur_sz;
+            prev->size_and_flag = pack_size_and_flag(prev_sz, false);
+            prev->next_block = cur_block->next_block;
+            if (cur_block->next_block) {
+                reinterpret_cast<block_metadata *>(cur_block->next_block)->prev_block = prev;
+            }
+
+            cur_block = prev;
+        }
+    }
 }
 
 inline void allocator_boundary_tags::set_fit_mode(
     allocator_with_fit_mode::fit_mode mode)
 {
-    throw not_implemented("inline void allocator_boundary_tags::set_fit_mode(allocator_with_fit_mode::fit_mode)", "your code should be here...");
+    auto *meta = reinterpret_cast<allocator_metadata *>(_trusted_memory);
+    std::lock_guard<std::mutex> lock(meta->sync);
+    meta->fit_mode = mode;
 }
 
 
@@ -219,17 +268,17 @@ std::vector<allocator_test_utils::block_info> allocator_boundary_tags::get_block
 
 allocator_boundary_tags::allocator_boundary_tags(const allocator_boundary_tags &other)
 {
-    throw not_implemented("allocator_boundary_tags::allocator_boundary_tags(const allocator_boundary_tags &other)", "your code should be here...");
+    throw std::logic_error("Copying is disabled for this allocator");
 }
 
 allocator_boundary_tags &allocator_boundary_tags::operator=(const allocator_boundary_tags &other)
 {
-    throw not_implemented("allocator_boundary_tags &allocator_boundary_tags::operator=(const allocator_boundary_tags &other)", "your code should be here...");
+    throw std::logic_error("Copying is disabled for this allocator");
 }
 
 bool allocator_boundary_tags::do_is_equal(const std::pmr::memory_resource &other) const noexcept
 {
-    throw not_implemented("bool allocator_boundary_tags::do_is_equal(const std::pmr::memory_resource &other) const noexcept", "your code should be here...");
+    return this == &other;
 }
 
 bool allocator_boundary_tags::boundary_iterator::operator==(
