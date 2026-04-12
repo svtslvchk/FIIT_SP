@@ -248,22 +248,42 @@ inline void allocator_boundary_tags::set_fit_mode(
 
 std::vector<allocator_test_utils::block_info> allocator_boundary_tags::get_blocks_info() const
 {
-    throw not_implemented("std::vector<allocator_test_utils::block_info> allocator_boundary_tags::get_blocks_info() const", "your code should be here...");
+    if (!_trusted_memory) {
+        return {};
+    }
+
+    auto *meta = reinterpret_cast<allocator_metadata *>(_trusted_memory);
+    std::lock_guard<std::mutex> lock(meta->sync);
+    return get_blocks_info_inner();
 }
 
 allocator_boundary_tags::boundary_iterator allocator_boundary_tags::begin() const noexcept
 {
-    throw not_implemented("allocator_boundary_tags::boundary_iterator allocator_boundary_tags::begin() const noexcept", "your code should be here...");
+    return boundary_iterator(_trusted_memory);
 }
 
 allocator_boundary_tags::boundary_iterator allocator_boundary_tags::end() const noexcept
 {
-    throw not_implemented("allocator_boundary_tags::boundary_iterator allocator_boundary_tags::end() const noexcept", "your code should be here...");
+    return boundary_iterator(nullptr);
 }
 
 std::vector<allocator_test_utils::block_info> allocator_boundary_tags::get_blocks_info_inner() const
 {
-    throw not_implemented("std::vector<allocator_test_utils::block_info> allocator_boundary_tags::get_blocks_info_inner() const", "your code should be here...");
+    std::vector<allocator_test_utils::block_info> info;
+    if (!_trusted_memory) {
+        return info;
+    }
+
+    auto *meta = reinterpret_cast<allocator_metadata *>(_trusted_memory);
+    block_metadata *cur = reinterpret_cast<block_metadata *>(meta->first_block);
+    while (cur) {
+        size_t size = get_size(cur->size_and_flag);
+        bool is_busy = is_occupied(cur->size_and_flag);
+        info.push_back({size, is_busy});
+        cur = reinterpret_cast<block_metadata *>(cur->next_block);
+    }
+
+    return info;
 }
 
 allocator_boundary_tags::allocator_boundary_tags(const allocator_boundary_tags &other)
