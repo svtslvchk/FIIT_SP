@@ -142,13 +142,15 @@ allocator_buddies_system &allocator_buddies_system::operator=(const allocator_bu
 
 bool allocator_buddies_system::do_is_equal(const std::pmr::memory_resource &other) const noexcept
 {
-    throw not_implemented("bool allocator_buddies_system::do_is_equal(const std::pmr::memory_resource &other) const noexcept", "your code should be here...");
+    return this == &other;
 }
 
 inline void allocator_buddies_system::set_fit_mode(
     allocator_with_fit_mode::fit_mode mode)
 {
-    throw not_implemented("inline void allocator_buddies_system::set_fit_mode(allocator_with_fit_mode::fit_mode)", "your code should be here...");
+    auto *meta = reinterpret_cast<allocator_metadata *>(_trusted_memory);
+    std::lock_guard<std::mutex> lock(meta->sync);
+    meta->fit_mode = mode;
 }
 
 
