@@ -74,10 +74,83 @@ allocator_buddies_system::allocator_buddies_system(
     first_block->size = static_cast<unsigned char>(space_size);
 }
 
+inline size_t get_relative_offset(void *block_ptr, void *trusted_memory) {
+    std::byte *data_start = reinterpret_cast<std::byte *>(trusted_memory) + sizeof(allocator_metadata);
+    return reinterpret_cast<std::byte *>(block_ptr) - data_start;
+}
+
+inline void* get_buddy_ptr(void *block_ptr, unsigned char power, void *trusted_memory) {
+    // 1. Находим смещение текущего блока относительно начала области данных
+    size_t relative_offset = get_relative_offset(block_ptr, trusted_memory);
+    
+    // 2. Считаем размер блока в байтах (2^power)
+    size_t block_size = 1ULL << power;
+    
+    // 3. Магия XOR: инвертируем бит, отвечающий за позицию двойника
+    size_t buddy_relative_offset = relative_offset ^ block_size;
+    
+    // 4. Возвращаем абсолютный адрес: начало данных + новое смещение
+    std::byte *data_start = reinterpret_cast<std::byte *>(trusted_memory) + sizeof(allocator_metadata);
+    return data_start + buddy_relative_offset;
+}
+
 [[nodiscard]] void *allocator_buddies_system::do_allocate_sm(
     size_t size)
 {
-    throw not_implemented("[[nodiscard]] void *allocator_buddies_system::do_allocate_sm(size_t)", "your code should be here...");
+    auto *meta = reinterpret_cast<allocator_metadata *>(_trusted_memory);
+    std::lock_guard<std::mutex> lock(meta->sync);
+    size_t total_size = size +occupied_block_metadata_size;
+    unsigned char target_power = static_cast<unsigned char>(__detail::nearest_greater_k_of_2(total_size));
+    if (target_power < min_k) {
+        target_power = min_k;
+    }
+
+    void *found_block_start = nullptr;
+    size_t found_block_size = 0;
+    for (auto i = begin(); i != end(); i++) {
+        void *cur_block_start = reinterpret_cast<std::byte *>(*i) - sizeof(block_metadata);
+        auto *cur_meta = reinterpret_cast<block_metadata *>(cur_block_start);
+
+        if (!cur_meta->occupied && cur_meta->size >= target_power) {
+            size_t cur_sz = 1ULL << cur_meta->size;
+
+            if (meta->fit_mode == fit_mode::first_fit) {
+                found_block_start = cur_block_start;
+                break;
+            } else if (meta->fit_mode == fit_mode::the_best_fit) {
+                if (!found_block_start || cur_sz < found_block_size) {
+                    found_block_start = cur_block_start;
+                    found_block_size = cur_sz;
+                }
+            } else if (meta->fit_mode == fit_mode::the_worst_fit) {
+                if (!found_block_start || cur_sz > found_block_size) {
+                    found_block_start = cur_block_start;
+                    found_block_size = cur_sz;
+                }
+            }
+        }
+    }
+
+    if (!found_block_size) {
+        throw std::bad_alloc();
+    }
+
+    auto *target_block_meta = reinterpret_cast<block_metadata *>(found_block_start);
+
+    while (target_block_meta->size > target_power) {
+        target_block_meta->size -= 1;
+        void *buddy_start = get_buddy_ptr(found_block_start, target_block_meta->size, _trusted_memory);
+        auto *buddy_meta = reinterpret_cast<block_metadata *>(buddy_start);
+        buddy_meta->occupied = false;
+        buddy_meta->size = target_block_meta->size;
+    }
+
+    target_block_meta->occupied = true;
+
+    void *allocator_ptr_pos = reinterpret_cast<std::byte *>(found_block_start) + sizeof(block_metadata);
+    *reinterpret_cast<void **>(allocator_ptr_pos) = this;
+
+    return reinterpret_cast<std::byte *>(found_block_start) + occupied_block_metadata_size;
 }
 
 void allocator_buddies_system::do_deallocate_sm(void *at)
