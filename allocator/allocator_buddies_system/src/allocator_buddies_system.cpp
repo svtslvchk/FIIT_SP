@@ -53,17 +53,33 @@ allocator_buddies_system::allocator_buddies_system(
         std::pmr::memory_resource *parent_allocator,
         allocator_with_fit_mode::fit_mode allocate_fit_mode)
 {
-    size_t total_size = sizeof(allocator_metadata) + (1ULL << space_size);
-    void *raw_mem = (parent_allocator != nullptr) 
-        ? parent_allocator->allocate(total_size) 
-        : ::operator new(total_size);
+    if (space_size < (1ULL << min_k)) {
+        throw std::logic_error("Requested size is too small to hold buddy system metadata");
+    }
+    
+    size_t actual_size = 1;
+    unsigned char power = 0;
+    while (actual_size < space_size) {
+        actual_size <<= 1;
+        power++;
+    }
+
+    if (power < min_k) {
+        power = min_k;
+        actual_size =  1ULL << min_k;
+    }
+
+    size_t total_to_allocate = sizeof(allocator_metadata) + actual_size;
+    void *raw_mem = (parent_allocator != nullptr)
+        ? parent_allocator->allocate(total_to_allocate)
+        : ::operator new(total_to_allocate);
 
     _trusted_memory = raw_mem;
     auto *meta = new (_trusted_memory) allocator_metadata {
         parent_allocator,
         nullptr,
         allocate_fit_mode,
-        static_cast<unsigned char>(space_size)
+        power
     };
 
     auto *first_block = reinterpret_cast<block_metadata *> (
@@ -71,7 +87,7 @@ allocator_buddies_system::allocator_buddies_system(
     );
 
     first_block->occupied = false;
-    first_block->size = static_cast<unsigned char>(space_size);
+    first_block->size = power;
 }
 
 inline size_t get_relative_offset(void *block_ptr, void *trusted_memory) {
@@ -99,7 +115,7 @@ inline void* get_buddy_ptr(void *block_ptr, unsigned char power, void *trusted_m
 {
     auto *meta = reinterpret_cast<allocator_metadata *>(_trusted_memory);
     std::lock_guard<std::mutex> lock(meta->sync);
-    size_t total_size = size +occupied_block_metadata_size;
+    size_t total_size = size + occupied_block_metadata_size;
     unsigned char target_power = static_cast<unsigned char>(__detail::nearest_greater_k_of_2(total_size));
     if (target_power < min_k) {
         target_power = min_k;
@@ -116,6 +132,7 @@ inline void* get_buddy_ptr(void *block_ptr, unsigned char power, void *trusted_m
 
             if (meta->fit_mode == fit_mode::first_fit) {
                 found_block_start = cur_block_start;
+                found_block_size = cur_sz;
                 break;
             } else if (meta->fit_mode == fit_mode::the_best_fit) {
                 if (!found_block_start || cur_sz < found_block_size) {
@@ -155,7 +172,42 @@ inline void* get_buddy_ptr(void *block_ptr, unsigned char power, void *trusted_m
 
 void allocator_buddies_system::do_deallocate_sm(void *at)
 {
-    throw not_implemented("void allocator_buddies_system::do_deallocate_sm(void *)", "your code should be here...");
+    if (!at) {
+        return;
+    }
+
+    auto *meta = reinterpret_cast<allocator_metadata *>(_trusted_memory);
+    std::lock_guard<std::mutex> lock(meta->sync);
+
+    void *cur_block_start = reinterpret_cast<std::byte *>(at) - occupied_block_metadata_size;
+    auto cur_meta = reinterpret_cast<block_metadata *>(cur_block_start);
+    void *owner_ptr = *reinterpret_cast<void **>(reinterpret_cast<std::byte *>(cur_block_start) + sizeof(block_metadata));
+
+    if (owner_ptr != this) {
+        throw std::runtime_error("Deallocation error: this block was not allocated by this allocator instance.");
+    }
+
+    cur_meta->occupied = false;
+    unsigned char cur_power = cur_meta->size;
+    void *cur_ptr = cur_block_start;
+
+    while (cur_power < meta->size_power) {
+        void *buddy_ptr = get_buddy_ptr(cur_ptr, cur_power, _trusted_memory);
+        auto *buddy_meta = reinterpret_cast<block_metadata *>(buddy_ptr);
+        if (buddy_meta->occupied || buddy_meta->size != cur_power) {
+            break;
+        }
+
+        if (buddy_ptr < cur_ptr) {
+            cur_ptr = buddy_ptr;
+        }
+
+        cur_power++;
+        auto *merged_meta = reinterpret_cast<block_metadata *>(cur_ptr);
+        merged_meta->size = cur_power;
+        merged_meta->occupied = false;
+    }
+
 }
 
 allocator_buddies_system::allocator_buddies_system(const allocator_buddies_system &other)
