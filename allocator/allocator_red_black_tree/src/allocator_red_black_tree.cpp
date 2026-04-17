@@ -203,23 +203,54 @@ void allocator_red_black_tree::set_fit_mode(allocator_with_fit_mode::fit_mode mo
 
 std::vector<allocator_test_utils::block_info> allocator_red_black_tree::get_blocks_info() const
 {
-    throw not_implemented("std::vector<allocator_test_utils::block_info> allocator_red_black_tree::get_blocks_info() const", "your code should be here...");
+    std::vector<allocator_test_utils::block_info> info;
+    if (!_trusted_memory) {
+        return info;
+    }
+
+    auto *meta = reinterpret_cast<allocator_metadata *>(_trusted_memory);
+    std::lock_guard<std::mutex> lock(meta->sync);
+    void *cur_ptr = reinterpret_cast<std::byte *>(_trusted_memory) + allocator_metadata_size;
+    while (cur_ptr) {
+        auto *base = reinterpret_cast<occupied_block_meta *>(cur_ptr);
+        allocator_test_utils::block_info block_info;
+        block_info.is_block_occupied = base->data.occupied;
+
+        size_t block_size;
+        if (base->next_phys) {
+            block_size = reinterpret_cast<std::byte *>(base->next_phys) - reinterpret_cast<std::byte *>(cur_ptr);
+        } else {
+            std::byte *end_of_allocator = reinterpret_cast<std::byte *>(_trusted_memory) + meta->total_size;
+            block_size = end_of_allocator - reinterpret_cast<std::byte *>(cur_ptr);
+        }
+
+        block_info.block_size = block_size;
+        info.push_back(block_info);
+        cur_ptr = base->next_phys;
+    }
+
+    return info;
 }
 
 std::vector<allocator_test_utils::block_info> allocator_red_black_tree::get_blocks_info_inner() const
 {
-    throw not_implemented("std::vector<allocator_test_utils::block_info> allocator_red_black_tree::get_blocks_info_inner() const", "your code should be here...");
+    return get_blocks_info();
 }
 
 
 allocator_red_black_tree::rb_iterator allocator_red_black_tree::begin() const noexcept
 {
-    throw not_implemented("allocator_red_black_tree::rb_iterator allocator_red_black_tree::begin() const noexcept", "your code should be here...");
+    if (!_trusted_memory) {
+        return end();
+    }
+
+    void *first_block = reinterpret_cast<std::byte *>(_trusted_memory) + allocator_metadata_size;
+    return rb_iterator(first_block);
 }
 
 allocator_red_black_tree::rb_iterator allocator_red_black_tree::end() const noexcept
 {
-    throw not_implemented("allocator_red_black_tree::rb_iterator allocator_red_black_tree::end() const noexcept", "your code should be here...");
+    return rb_iterator(nullptr);
 }
 
 
