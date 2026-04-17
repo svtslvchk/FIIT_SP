@@ -306,17 +306,20 @@ void *allocator_red_black_tree::rb_iterator::operator*() const noexcept
     return reinterpret_cast<std::byte *>(_block_ptr) + offset;
 }
 
-allocator_red_black_tree::rb_iterator::rb_iterator()
+allocator_red_black_tree::rb_iterator::rb_iterator() : _block_ptr(nullptr)
 {
-    throw not_implemented("allocator_red_black_tree::rb_iterator::rb_iterator()", "your code should be here...");
 }
 
-allocator_red_black_tree::rb_iterator::rb_iterator(void *trusted)
+allocator_red_black_tree::rb_iterator::rb_iterator(void *trusted) : _block_ptr(trusted)
 {
-    throw not_implemented("allocator_red_black_tree::rb_iterator::rb_iterator(void *)", "your code should be here...");
 }
 
 bool allocator_red_black_tree::rb_iterator::occupied() const noexcept
 {
-    throw not_implemented("bool allocator_red_black_tree::rb_iterator::occupied() const noexcept", "your code should be here...");
+    if (!_block_ptr) {
+        return false;
+    }
+
+    auto *meta = reinterpret_cast<occupied_block_meta *>(_block_ptr);
+    return meta->data.occupied;
 }
