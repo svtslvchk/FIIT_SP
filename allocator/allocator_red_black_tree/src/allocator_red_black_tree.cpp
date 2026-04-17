@@ -256,32 +256,54 @@ allocator_red_black_tree::rb_iterator allocator_red_black_tree::end() const noex
 
 bool allocator_red_black_tree::rb_iterator::operator==(const allocator_red_black_tree::rb_iterator &other) const noexcept
 {
-    throw not_implemented("bool allocator_red_black_tree::rb_iterator::operator==(const allocator_red_black_tree::rb_iterator &) const noexcept", "your code should be here...");
+    return _block_ptr == other._block_ptr;
 }
 
 bool allocator_red_black_tree::rb_iterator::operator!=(const allocator_red_black_tree::rb_iterator &other) const noexcept
 {
-    throw not_implemented("bool allocator_red_black_tree::rb_iterator::operator!=(const allocator_red_black_tree::rb_iterator &) const noexcept", "your code should be here...");
+    return !(*this == other);
 }
 
 allocator_red_black_tree::rb_iterator &allocator_red_black_tree::rb_iterator::operator++() & noexcept
 {
-    throw not_implemented("allocator_red_black_tree::rb_iterator &allocator_red_black_tree::rb_iterator::operator++() & noexcept", "your code should be here...");
+    if (_block_ptr) {
+        auto *meta = reinterpret_cast<occupied_block_meta *>(_block_ptr);
+        _block_ptr = meta->next_phys;
+    }
+
+    return *this;
 }
 
 allocator_red_black_tree::rb_iterator allocator_red_black_tree::rb_iterator::operator++(int n)
 {
-    throw not_implemented("allocator_red_black_tree::rb_iterator allocator_red_black_tree::rb_iterator::operator++(int)", "your code should be here...");
+    rb_iterator temp = *this;
+    ++(*this);
+    return temp;
 }
 
 size_t allocator_red_black_tree::rb_iterator::size() const noexcept
 {
-    throw not_implemented("size_t allocator_red_black_tree::rb_iterator::size() const noexcept", "your code should be here...");
+    if (!_block_ptr) {
+        return 0;
+    }
+
+    auto *meta = reinterpret_cast<occupied_block_meta *>(_block_ptr);
+    if (meta->next_phys) {
+        return reinterpret_cast<std::byte *>(meta->next_phys) - reinterpret_cast<std::byte *>(_block_ptr);
+    }
+
+    return 0;
 }
 
 void *allocator_red_black_tree::rb_iterator::operator*() const noexcept
 {
-    throw not_implemented("void *allocator_red_black_tree::rb_iterator::operator*() const noexcept", "your code should be here...");
+    if (!_block_ptr) {
+        return nullptr;
+    }
+
+    auto *meta = reinterpret_cast<occupied_block_meta *>(_block_ptr);
+    size_t offset = (meta->data.occupied) ? occupied_block_metadata_size : free_block_metadata_size;
+    return reinterpret_cast<std::byte *>(_block_ptr) + offset;
 }
 
 allocator_red_black_tree::rb_iterator::rb_iterator()
