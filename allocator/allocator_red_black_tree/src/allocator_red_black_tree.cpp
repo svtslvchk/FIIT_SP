@@ -176,7 +176,8 @@ allocator_red_black_tree &allocator_red_black_tree::operator=(const allocator_re
 
 bool allocator_red_black_tree::do_is_equal(const std::pmr::memory_resource &other) const noexcept
 {
-    throw not_implemented("bool allocator_red_black_tree::do_is_equal(const std::pmr::memory_resource &other) const noexcept", "your code should be here...");
+    auto *other_ptr = dynamic_cast<const allocator_red_black_tree *>(&other);
+    return other_ptr && _trusted_memory == other_ptr->_trusted_memory;
 }
 
 [[nodiscard]] void *allocator_red_black_tree::do_allocate_sm(
@@ -194,7 +195,9 @@ void allocator_red_black_tree::do_deallocate_sm(
 
 void allocator_red_black_tree::set_fit_mode(allocator_with_fit_mode::fit_mode mode)
 {
-    throw not_implemented("void allocator_red_black_tree::set_fit_mode(allocator_with_fit_mode::fit_mode)", "your code should be here...");
+    auto *meta = reinterpret_cast<allocator_metadata *>(_trusted_memory);
+    std::lock_guard<std::mutex> lock(meta->sync);
+    meta->mode = mode;
 }
 
 
