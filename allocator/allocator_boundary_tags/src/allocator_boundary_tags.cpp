@@ -126,25 +126,20 @@ allocator_boundary_tags::allocator_boundary_tags(
     size_t best_size = static_cast<size_t>(-1);
     size_t worst_size = 0;
 
-    while (current != nullptr) {
+    while (current) {
         size_t cur_sz = get_size(current->size_and_flag);
         bool cur_busy = is_occupied(current->size_and_flag);
 
         if (!cur_busy && cur_sz >= total_size) {
             if (meta->fit_mode == allocator_with_fit_mode::fit_mode::first_fit) {
-                // 1. First Fit: Нашли и сразу выходим
                 target_block = current;
                 break; 
             } else if (meta->fit_mode == allocator_with_fit_mode::fit_mode::the_best_fit) {
-                // 2. Best Fit: Ищем блок, который минимально превышает нужный размер
-                // (чтобы оставить меньше "хлама" в памяти)
                 if (cur_sz < best_size) {
                     best_size = cur_sz;
                     target_block = current;
                 }
             } else if (meta->fit_mode == allocator_with_fit_mode::fit_mode::the_worst_fit) {
-                // 3. Worst Fit: Ищем самый огромный блок
-                // (чтобы после "отрезания" остаток всё еще был полезным и большим)
                 if (cur_sz > worst_size) {
                     worst_size = cur_sz;
                     target_block = current;
@@ -177,7 +172,6 @@ allocator_boundary_tags::allocator_boundary_tags(
         target_block->next_block = new_block_ptr;
         target_block->size_and_flag = pack_size_and_flag(total_size, true);
     } else {
-        // Если блок не режем, просто помечаем целиком как занятый
         target_block->size_and_flag = pack_size_and_flag(target_sz, true);
     }
 
@@ -187,7 +181,7 @@ allocator_boundary_tags::allocator_boundary_tags(
 void allocator_boundary_tags::do_deallocate_sm(
     void *at)
 {
-    if (at == nullptr) {
+    if (!at) {
         return;
     }
 
@@ -202,7 +196,6 @@ void allocator_boundary_tags::do_deallocate_sm(
         return;
     }
 
-    // флаг
     size_t cur_sz = get_size(cur_block->size_and_flag);
     cur_block->size_and_flag = pack_size_and_flag(cur_sz, false);
 
@@ -394,7 +387,7 @@ allocator_boundary_tags::boundary_iterator::boundary_iterator(void *trusted) : _
     } else {
         auto *meta = reinterpret_cast<allocator_metadata *>(_trusted_memory);
         _occupied_ptr = meta->first_block;
-        if (_occupied) {
+        if (_occupied_ptr) {
             auto *block = reinterpret_cast<block_metadata *>(_occupied_ptr);
             _occupied = is_occupied(block->size_and_flag);
         } else {

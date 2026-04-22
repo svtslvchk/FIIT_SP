@@ -10,3 +10,7 @@ target_link_libraries(
         sys_prog_allctr_allctr_glbl_hp_tests
         PRIVATE
         sys_prog_allctr_allctr_glbl_hp)
+
+
+include(GoogleTest)
+gtest_discover_tests(sys_prog_allctr_allctr_glbl_hp_tests)

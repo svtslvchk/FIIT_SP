@@ -197,11 +197,13 @@ void allocator_sorted_list::do_deallocate_sm(
         meta->first_free_block = block_to_free;
     }
 
+    // склейка с правым
     if (cur && reinterpret_cast<std::byte *>(block_to_free) + block_to_free->size == reinterpret_cast<std::byte *>(cur)) {
         block_to_free->size += cur->size;
         block_to_free->next_free = cur->next_free;
     }
 
+    // склейка с левым
     if (prev && reinterpret_cast<std::byte *>(prev) + prev->size == reinterpret_cast<std::byte *>(block_to_free)) {
         prev->size += block_to_free->size;
         prev->next_free = block_to_free->next_free;
@@ -371,13 +373,13 @@ allocator_sorted_list::sorted_iterator &allocator_sorted_list::sorted_iterator::
     size_t current_block_size = get_block_size(_current_ptr);
     _current_ptr = static_cast<std::byte*>(_current_ptr) + current_block_size;
     size_t total_size = get_trusted_total_size(_trusted_memory);
-    std::byte* memory_end = static_cast<std::byte*>(_trusted_memory) + total_size;
+    std::byte *memory_end = static_cast<std::byte *>(_trusted_memory) + total_size;
 
-    if (static_cast<std::byte*>(_current_ptr) >= memory_end) {
+    if (static_cast<std::byte *>(_current_ptr) >= memory_end) {
         _current_ptr = nullptr;
         _free_ptr = nullptr;
     } else {
-        while (_free_ptr && static_cast<std::byte*>(_free_ptr) < static_cast<std::byte*>(_current_ptr)) {
+        while (_free_ptr && static_cast<std::byte *>(_free_ptr) < static_cast<std::byte *>(_current_ptr)) {
             _free_ptr = get_next_free_ptr(_free_ptr);
         }
     }

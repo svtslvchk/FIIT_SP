@@ -10,3 +10,6 @@ target_link_libraries(
         sys_prog_allctr_allctr_bndr_tgs_tests
         PRIVATE
         sys_prog_allctr_allctr_bndr_tgs)
+
+include(GoogleTest)
+gtest_discover_tests(sys_prog_allctr_allctr_bndr_tgs_tests)
