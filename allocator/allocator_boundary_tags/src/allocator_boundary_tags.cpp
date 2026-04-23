@@ -16,7 +16,7 @@ namespace {
         size_t size_and_flag;
         void *prev_block;
         void *next_block;
-        void *trusted_memory; // указатель на начало аллокатора
+        void *trusted_memory;
     };
 
     inline bool is_occupied(size_t size_field) noexcept {
