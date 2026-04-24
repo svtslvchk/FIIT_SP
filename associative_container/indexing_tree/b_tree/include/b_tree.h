@@ -1,6 +1,8 @@
 #ifndef SYS_PROG_B_TREE_H
 #define SYS_PROG_B_TREE_H
 
+#include "../../../include/associative_container.h"
+
 #include <iterator>
 #include <utility>
 #include <boost/container/static_vector.hpp>
@@ -8,7 +10,8 @@
 #include <pp_allocator.h>
 #include <associative_container.h>
 #include <not_implemented.h>
-#include <initializer_list>
+#include <initializer_list> 
+#include <cstddef>
 
 template <typename tkey, typename tvalue, comparator<tkey> compare = std::less<tkey>, std::size_t t = 5>
 class B_tree final : private compare // EBCO
@@ -44,6 +47,10 @@ private:
     size_t _size;
 
     pp_allocator<value_type> get_allocator() const noexcept;
+
+    btree_node* copy_tree(btree_node* other_node);
+
+    void r_clear(btree_node *node) noexcept;
 
 public:
 
@@ -373,13 +380,12 @@ bool B_tree<tkey, tvalue, compare, t>::compare_keys(const tkey &lhs, const tkey 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 B_tree<tkey, tvalue, compare, t>::btree_node::btree_node() noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> B_tree<tkey, tvalue, compare, t>::btree_node::btree_node(pp_allocator<value_type> al)", "your code should be here...");
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 pp_allocator<typename B_tree<tkey, tvalue, compare, t>::value_type> B_tree<tkey, tvalue, compare, t>::get_allocator() const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> pp_allocator<typename B_tree<tkey, tvalue, compare, t>::value_type> B_tree<tkey, tvalue, compare, t>::get_allocator() const noexcept", "your code should be here...");
+    return _allocator;
 }
 
 // region constructors implementation
@@ -387,20 +393,15 @@ pp_allocator<typename B_tree<tkey, tvalue, compare, t>::value_type> B_tree<tkey,
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 B_tree<tkey, tvalue, compare, t>::B_tree(
         const compare& cmp,
-        pp_allocator<value_type> alloc)
+        pp_allocator<value_type> alloc) : compare(cmp), _allocator(alloc), _root(nullptr), _size(0)
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> B_tree<tkey, tvalue, compare, t>::B_tree(const compare& cmp, pp_allocator<value_type> alloc)", "your code should be here...");
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 B_tree<tkey, tvalue, compare, t>::B_tree(
         pp_allocator<value_type> alloc,\
-        const compare& comp)
+        const compare& comp) : B_tree(comp, alloc)
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "B_tree<tkey, tvalue, compare, t>::B_tree(\n"
-                          "pp_allocator<value_type> alloc,\\\n"
-                          "const compare& comp)", "your code should be here...");
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
@@ -409,28 +410,19 @@ B_tree<tkey, tvalue, compare, t>::B_tree(
         iterator begin,
         iterator end,
         const compare& cmp,
-        pp_allocator<value_type> alloc)
+        pp_allocator<value_type> alloc) : B_tree(cmp, alloc)
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "template<input_iterator_for_pair<tkey, tvalue> iterator>\n"
-                          "B_tree<tkey, tvalue, compare, t>::B_tree(\n"
-                          "iterator begin,\n"
-                          "iterator end,\n"
-                          "const compare& cmp,\n"
-                          "pp_allocator<value_type> alloc)", "your code should be here...");
+    for (auto i = begin; i != end; i++) {
+        insert(*i);
+    }
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 B_tree<tkey, tvalue, compare, t>::B_tree(
         std::initializer_list<std::pair<tkey, tvalue>> data,
         const compare& cmp,
-        pp_allocator<value_type> alloc)
+        pp_allocator<value_type> alloc) : B_tree(data.begin(), data.end(), cmp, alloc)
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "B_tree<tkey, tvalue, compare, t>::B_tree(\n"
-                          "std::initializer_list<std::pair<tkey, tvalue>> data,\n"
-                          "const compare& cmp,\n"
-                          "pp_allocator<value_type> alloc)", "your code should be here...");
 }
 
 // endregion constructors implementation
@@ -440,31 +432,65 @@ B_tree<tkey, tvalue, compare, t>::B_tree(
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 B_tree<tkey, tvalue, compare, t>::~B_tree() noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> B_tree<tkey, tvalue, compare, t>::~B_tree() noexcept", "your code should be here...");
+    clear();
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
-B_tree<tkey, tvalue, compare, t>::B_tree(const B_tree& other)
+typename B_tree<tkey, tvalue, compare, t>::btree_node* B_tree<tkey, tvalue, compare, t>::copy_tree(btree_node* other_node)
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> B_tree<tkey, tvalue, compare, t>::B_tree(const B_tree& other)", "your code should be here...");
+    if (!other_node) {
+        return nullptr;
+    }
+
+    btree_node *new_node = new btree_node();
+    new_node->_keys = other_node->_keys;
+
+    for (auto child : other_node->_pointers) {
+        new_node->_pointers.push_back(copy_tree(child));
+    }
+
+    return new_node;
+}
+
+template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
+B_tree<tkey, tvalue, compare, t>::B_tree(const B_tree& other) : compare(other), _allocator(other._allocator), _size(other._size)
+{
+    _root = copy_tree(other._root);
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 B_tree<tkey, tvalue, compare, t>& B_tree<tkey, tvalue, compare, t>::operator=(const B_tree& other)
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> B_tree<tkey, tvalue, compare, t>& B_tree<tkey, tvalue, compare, t>::operator=(const B_tree& other)", "your code should be here...");
+    if (this != &other) {
+        B_tree tmp(other);
+        std::swap(_root, tmp._root);
+        std::swap(_size, tmp._size);
+    }
+
+    return *this;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 B_tree<tkey, tvalue, compare, t>::B_tree(B_tree&& other) noexcept
+    : compare(std::move(other)), _allocator(std::move(other._allocator)), _root(other._root), _size(other._size)
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> B_tree<tkey, tvalue, compare, t>::B_tree(B_tree&& other) noexcept", "your code should be here...");
+    other._root = nullptr;
+    other._size = 0;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 B_tree<tkey, tvalue, compare, t>& B_tree<tkey, tvalue, compare, t>::operator=(B_tree&& other) noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> B_tree<tkey, tvalue, compare, t>& B_tree<tkey, tvalue, compare, t>::operator=(B_tree&& other) noexcept", "your code should be here...");
+    if (this != &other) {
+        this->clear();
+        compare::operator=(std::move(other));
+        this->_root = other._root;
+        this->_allocator = std::move(other._allocator);
+        other._root = nullptr;
+        other._size = 0;
+    }
+
+    return *this;
 }
 
 // endregion five implementation
@@ -473,309 +499,498 @@ B_tree<tkey, tvalue, compare, t>& B_tree<tkey, tvalue, compare, t>::operator=(B_
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 B_tree<tkey, tvalue, compare, t>::btree_iterator::btree_iterator(
-        const std::stack<std::pair<btree_node**, size_t>>& path, size_t index)
+        const std::stack<std::pair<btree_node**, size_t>>& path, size_t index) : _path(path), _index(index)
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> B_tree<tkey, tvalue, compare, t>::btree_iterator::btree_iterator(const std::stack<std::pair<btree_node**, size_t>>& path, size_t index)", "your code should be here...");
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_iterator::reference
 B_tree<tkey, tvalue, compare, t>::btree_iterator::operator*() const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> typename B_tree<tkey, tvalue, compare, t>::btree_iterator::reference B_tree<tkey, tvalue, compare, t>::btree_iterator::operator*() const noexcept", "your code should be here...");
+    auto &top = _path.top();
+    return reinterpret_cast<reference>((*top.first)->_keys[_index]);
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_iterator::pointer
 B_tree<tkey, tvalue, compare, t>::btree_iterator::operator->() const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> typename B_tree<tkey, tvalue, compare, t>::btree_iterator::pointer B_tree<tkey, tvalue, compare, t>::btree_iterator::operator->() const noexcept", "your code should be here...");
+    auto &top = _path.top;
+    return &((*top.first)->_keys[_index]);
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_iterator&
 B_tree<tkey, tvalue, compare, t>::btree_iterator::operator++()
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> typename B_tree<tkey, tvalue, compare, t>::btree_iterator& B_tree<tkey, tvalue, compare, t>::btree_iterator::operator++()", "your code should be here...");
+    if (_path.empty()) {
+        return *this;
+    }
+
+    auto &top = _path.top();
+    btree_node *node = *top.first;
+
+    if (!node->_pointers.empty() && _index + 1 <node->_pointers.size()) {
+        btree_node **current_child_ptr = &(node->_pointers[_index + 1]);
+        
+        while (current_child_ptr && *current_child_ptr) {
+            _path.push({current_child_ptr, 0});
+            if ((*current_child_ptr)->_pointers.empty()) {
+                break;
+            }
+
+            current_child_ptr = &((*current_child_ptr)->_pointers[0]);
+        }
+    } else {
+        top.second++;
+
+        while (!_path.empty() && _path.top().second >= (*_path.top().first)->_keys.size()) {
+            _path.pop();
+
+            if (_path.empty()) {
+                break;
+            }
+        }
+    }
+
+    return *this;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_iterator
 B_tree<tkey, tvalue, compare, t>::btree_iterator::operator++(int)
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> typename B_tree<tkey, tvalue, compare, t>::btree_iterator B_tree<tkey, tvalue, compare, t>::btree_iterator::operator++(int)", "your code should be here...");
+    btree_node temp = *this;
+    ++(*this);
+    return temp;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_iterator&
 B_tree<tkey, tvalue, compare, t>::btree_iterator::operator--()
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> typename B_tree<tkey, tvalue, compare, t>::btree_iterator& B_tree<tkey, tvalue, compare, t>::btree_iterator::operator--()", "your code should be here...");
+    if (_path.empty()) {
+        return *this;
+    }
+
+    auto& top = _path.top();
+    btree_node* node = *top.first;
+
+    if (!node->_pointers.empty() && top.second < node->_pointers.size()) {
+        btree_node** current_child_ptr = &(node->_pointers[top.second]);
+        while (current_child_ptr && *current_child_ptr) {
+            size_t last_key_idx = (*current_child_ptr)->_keys.size() - 1;
+            _path.push({current_child_ptr, last_key_idx});
+            if ((*current_child_ptr)->_pointers.empty()) {
+                break;
+            }
+
+            current_child_ptr = &((*current_child_ptr)->_pointers[(*current_child_ptr)->_pointers.size() - 1]);
+        }
+    } else {
+        while (!_path.empty() && _path.top().second == 0) {
+            _path.pop();
+        }
+
+        if (!_path.empty()) {
+            _path.top().second--;
+        }
+    }
+
+    return *this;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_iterator
 B_tree<tkey, tvalue, compare, t>::btree_iterator::operator--(int)
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> typename B_tree<tkey, tvalue, compare, t>::btree_iterator B_tree<tkey, tvalue, compare, t>::btree_iterator::operator--(int)", "your code should be here...");
+    btree_node temp = *this;
+    --(*this);
+    return temp;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 bool B_tree<tkey, tvalue, compare, t>::btree_iterator::operator==(const self& other) const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> bool B_tree<tkey, tvalue, compare, t>::btree_iterator::operator==(const self& other) const noexcept", "your code should be here...");
+    return _path == other._path;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 bool B_tree<tkey, tvalue, compare, t>::btree_iterator::operator!=(const self& other) const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> bool B_tree<tkey, tvalue, compare, t>::btree_iterator::operator!=(const self& other) const noexcept", "your code should be here...");
+    return !(*this == other);
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 size_t B_tree<tkey, tvalue, compare, t>::btree_iterator::depth() const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> size_t B_tree<tkey, tvalue, compare, t>::btree_iterator::depth() const noexcept", "your code should be here...");
+    return _path.size();
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 size_t B_tree<tkey, tvalue, compare, t>::btree_iterator::current_node_keys_count() const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> size_t B_tree<tkey, tvalue, compare, t>::btree_iterator::current_node_keys_count() const noexcept", "your code should be here...");
+    if (_path.empty()) {
+        return 0;
+    }
+
+    return (*_path.top().first)->_keys.size();
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 bool B_tree<tkey, tvalue, compare, t>::btree_iterator::is_terminate_node() const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> bool B_tree<tkey, tvalue, compare, t>::btree_iterator::is_terminate_node() const noexcept", "your code should be here...");
+    if (_path.empty()) {
+        return false;
+    }
+
+    return (*_path.top().first)->_pointers.empty();
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 size_t B_tree<tkey, tvalue, compare, t>::btree_iterator::index() const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> size_t B_tree<tkey, tvalue, compare, t>::btree_iterator::index() const noexcept", "your code should be here...");
+    if (_path.empty()) {
+        return false;
+    }
+
+    return _path.top().second;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 B_tree<tkey, tvalue, compare, t>::btree_const_iterator::btree_const_iterator(
-        const std::stack<std::pair<btree_node* const*, size_t>>& path, size_t index)
+        const std::stack<std::pair<btree_node* const*, size_t>>& path, size_t index) : _path(path), _index(index)
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "B_tree<tkey, tvalue, compare, t>::btree_const_iterator::btree_const_iterator(\n"
-                          "const std::stack<std::pair<const btree_node**, size_t>>& path, size_t index)", "your code should be here...");
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 B_tree<tkey, tvalue, compare, t>::btree_const_iterator::btree_const_iterator(
         const btree_iterator& it) noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "B_tree<tkey, tvalue, compare, t>::btree_const_iterator::btree_const_iterator(\n"
-                          "const btree_iterator& it) noexcept", "your code should be here...");
+    auto temp_stack = it._path;
+    _path = reinterpret_cast<const std::stack<std::pair<btree_node* const*, size_t>>&>(it._path);
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_const_iterator::reference
 B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator*() const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "typename B_tree<tkey, tvalue, compare, t>::btree_const_iterator::reference\n"
-                          "B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator*() const noexcept", "your code should be here...");
+    auto &top = _path.top();
+    return reinterpret_cast<reference>((*top.first)->_keys[top.second]);
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_const_iterator::pointer
 B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator->() const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "typename B_tree<tkey, tvalue, compare, t>::btree_const_iterator::pointer\n"
-                          "B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator->() const noexcept", "your code should be here...");
+    return &(operator*());
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_const_iterator&
 B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator++()
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "typename B_tree<tkey, tvalue, compare, t>::btree_const_iterator&\n"
-                          "B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator++()", "your code should be here...");
+    if (_path.empty()) {
+        return *this;
+    }
+
+    auto *node = *_path.top().first;
+    if (!node->_pointers.empty()) {
+        btree_node* const *cur_child_ptr = &(node->_pointers[_index + 1]);
+        while (cur_child_ptr && *cur_child_ptr) {
+            _path.push({cur_child_ptr, 0});
+            if ((*cur_child_ptr)->_pointers.empty()) {
+                break;
+            }
+
+            cur_child_ptr = &((*cur_child_ptr)->_pointers[0]);
+        }
+    } else {
+        _index++;
+        while (!_path.empty() && _path.top().second >= (*_path.top().first)->_keys.size()) {
+            _path.pop();
+            if (_path.empty()) {
+                break;
+            }
+        }
+    }
+
+    return *this;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_const_iterator
 B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator++(int)
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "typename B_tree<tkey, tvalue, compare, t>::btree_const_iterator\n"
-                          "B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator++(int)", "your code should be here...");
+    btree_const_iterator temp = *this;
+    ++(*this);
+    return temp;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_const_iterator&
 B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator--()
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "typename B_tree<tkey, tvalue, compare, t>::btree_const_iterator&\n"
-                          "B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator--()", "your code should be here...");
+    if (_path.empty()) {
+        return *this;
+    }
+
+    auto *node = *_path.top().first;
+    if (!node->_pointers.empty()) {
+        btree_node* const* cur_child_ptr = &(node->_pointers[_index]);
+        while (cur_child_ptr && *cur_child_ptr) {
+            size_t last_idx = (*cur_child_ptr)->_keys.size() - 1;
+            _path.push({cur_child_ptr, last_idx});
+            if ((*cur_child_ptr)->_pointers.empty()) {
+                break;
+            }
+
+            cur_child_ptr = &((*cur_child_ptr)->_pointers[(*cur_child_ptr)->_pointers.size() - 1]);
+        }
+    } else {
+        while (!_path.empty() && _path.top().second == 0) {
+            _path.pop();
+        }
+        
+        if (!_path.empty()){
+            _path.top().second--;
+        }
+    }
+
+    return *this;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_const_iterator
 B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator--(int)
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "typename B_tree<tkey, tvalue, compare, t>::btree_const_iterator\n"
-                          "B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator--(int)", "your code should be here...");
+    btree_const_iterator temp = *this;
+    --(*this);
+    return temp;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 bool B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator==(const self& other) const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> bool B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator==(const self& other) const noexcept", "your code should be here...");
+    return _path == other._path;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 bool B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator!=(const self& other) const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> bool B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator!=(const self& other) const noexcept", "your code should be here...");
+    return !(*this == other);
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 size_t B_tree<tkey, tvalue, compare, t>::btree_const_iterator::depth() const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> size_t B_tree<tkey, tvalue, compare, t>::btree_const_iterator::depth() const noexcept", "your code should be here...");
+    return _path.size();
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 size_t B_tree<tkey, tvalue, compare, t>::btree_const_iterator::current_node_keys_count() const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> size_t B_tree<tkey, tvalue, compare, t>::btree_const_iterator::current_node_keys_count() const noexcept", "your code should be here...");
+    if (_path.empty()) {
+        return 0;
+    }
+
+    return (*_path.top().first)->_keys.size();
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 bool B_tree<tkey, tvalue, compare, t>::btree_const_iterator::is_terminate_node() const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> bool B_tree<tkey, tvalue, compare, t>::btree_const_iterator::is_terminate_node() const noexcept", "your code should be here...");
+    if (_path.empty()) {
+        return false;
+    }
+
+    return (*_path.top().first)->_pointers.empty();
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 size_t B_tree<tkey, tvalue, compare, t>::btree_const_iterator::index() const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> size_t B_tree<tkey, tvalue, compare, t>::btree_const_iterator::index() const noexcept", "your code should be here...");
+    if (_path.empty()) {
+        return 0;
+    }
+
+    return _path.top().second;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::btree_reverse_iterator(
-        const std::stack<std::pair<btree_node**, size_t>>& path, size_t index)
+        const std::stack<std::pair<btree_node**, size_t>>& path, size_t index) : _path(path), _index(index)
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::btree_reverse_iterator(\n"
-                          "const std::stack<std::pair<btree_node**, size_t>>& path, size_t index)", "your code should be here...");
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::btree_reverse_iterator(
         const btree_iterator& it) noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::btree_reverse_iterator(\n"
-                          "const btree_iterator& it) noexcept", "your code should be here...");
+    _path = it._path;
+    _index = it.index;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::operator B_tree<tkey, tvalue, compare, t>::btree_iterator() const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::operator btree_iterator() const noexcept", "your code should be here...");
+    return btree_iterator(_path, _index);
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::reference
 B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::operator*() const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "typename B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::reference\n"
-                          "B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::operator*() const noexcept", "your code should be here...");
+    auto &top = _path.top();
+    return reinterpret_cast<reference>((*top.first)->_keys[_index]);
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::pointer
 B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::operator->() const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "typename B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::pointer\n"
-                          "B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::operator->() const noexcept", "your code should be here...");
+    return &(operator*());
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator&
 B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::operator++()
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "typename B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator&\n"
-                          "B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::operator++()", "your code should be here...");
+    if (_path.empty()) {
+        return *this;
+    }
+
+    auto *node = *_path.top().first;
+    if (node->_pointers.empty()) {
+        btree_node **cur_child_ptr = &(node->_pointers[_index]);
+        while (cur_child_ptr && *cur_child_ptr) {
+            size_t last_key_index = (*cur_child_ptr)->_keys.size() - 1;
+            _path.push({cur_child_ptr, last_key_index});
+            _index = last_key_index;
+            if ((*cur_child_ptr)->_pointers.empty()) {
+                break;
+            }
+
+            cur_child_ptr = &((*cur_child_ptr)->_pointers[(*cur_child_ptr)->_pointers.size() - 1]);
+        }
+    } else {
+        if (_index > 0) {
+            _index--;
+            _path.top().second = _index;
+        } else {
+            while (!_path.empty() && _path.top().second == 0) {
+                _path.top();
+            }
+
+            if (!_path.empty()) {
+                _index = --_path.top().second;
+            } else {
+                _index = 0;
+            }
+        }
+    }
+
+    return *this;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator
 B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::operator++(int)
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "typename B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator\n"
-                          "B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::operator++(int)", "your code should be here...");
+    btree_reverse_iterator temp = *this;
+    ++(*this);
+    return temp;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator&
 B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::operator--()
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "typename B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator&\n"
-                          "B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::operator--()", "your code should be here...");
+    if (_path.empty()) {
+        return *this;
+    }
+
+    auto *node = *_path.top().first;
+    if (!node->_pointers.empty()) {
+        btree_node **cur_child_ptr = &(node->_pointers[_index]);
+        while (cur_child_ptr && *cur_child_ptr) {
+            _path.push({cur_child_ptr, 0});
+            _index = 0;
+            if ((*cur_child_ptr)->_pointers.empty()) {
+                break;
+            }
+
+            cur_child_ptr = &((*cur_child_ptr)->_pointers[0]);
+        }
+    } else {
+        if (_index < node->_keys.size() - 1) {
+            _index++;
+            _path.top().second = _index;
+        } else {
+            while (!_path.empty() && _path.top().second >= (*_path.top().first)->_keys.size() - 1) {
+                _path.pop();
+            }
+
+            if (!_path.empty()) {
+                _index = ++_path.top().second;
+            }
+        }
+    }
+
+    return *this;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator
 B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::operator--(int)
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "typename B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator\n"
-                          "B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::operator--(int)", "your code should be here...");
+    btree_reverse_iterator temp = *this;
+    --(*this);
+    return temp;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 bool B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::operator==(const self& other) const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> bool B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::operator==(const self& other) const noexcept", "your code should be here...");
+    return _index == other._index && _path == other._path;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 bool B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::operator!=(const self& other) const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> bool B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::operator!=(const self& other) const noexcept", "your code should be here...");
+    return !(*this == other);
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 size_t B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::depth() const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> size_t B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::depth() const noexcept", "your code should be here...");
+    return _path.size();
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 size_t B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::current_node_keys_count() const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> size_t B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::current_node_keys_count() const noexcept", "your code should be here...");
+    if (_path.empty()) {
+        return 0;
+    }
+
+    return (*_path.top())->_keys.size();
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 bool B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::is_terminate_node() const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> bool B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::is_terminate_node() const noexcept", "your code should be here...");
+    if (_path.empty()) {
+        return true;
+    }
+
+    return (*_path.top())->_pointers.empty();
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 size_t B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::index() const noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> size_t B_tree<tkey, tvalue, compare, t>::btree_reverse_iterator::index() const noexcept", "your code should be here...");
+    return _index;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
@@ -1057,11 +1272,25 @@ bool B_tree<tkey, tvalue, compare, t>::contains(const tkey& key) const
 // endregion lookup implementation
 
 // region modifiers implementation
+template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
+void B_tree<tkey, tvalue, compare, t>::r_clear(btree_node *node) noexcept {
+    if (!node) {
+        return;
+    }
+
+    for (auto child : node->_pointers) {
+        r_clear(child);
+    }
+
+    delete node;
+}
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 void B_tree<tkey, tvalue, compare, t>::clear() noexcept
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> void B_tree<tkey, tvalue, compare, t>::clear() noexcept", "your code should be here...");
+    r_clear(_root);
+    _root = nullptr;
+    _size = 0;
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
@@ -1184,6 +1413,5 @@ bool compare_keys(const tkey &lhs, const tkey &rhs)
     throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t >\n"
                           "bool compare_keys(const tkey &lhs, const tkey &rhs)", "your code should be here...");
 }
-
 
 #endif
