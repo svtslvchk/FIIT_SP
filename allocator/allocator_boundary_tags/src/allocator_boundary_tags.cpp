@@ -39,7 +39,7 @@ namespace {
 
 allocator_boundary_tags::~allocator_boundary_tags()
 {
-    if (_trusted_memory) {
+    if (!_trusted_memory) {
         return;
     }
 
@@ -192,6 +192,26 @@ void allocator_boundary_tags::do_deallocate_sm(
         static_cast<std::byte *>(at) - block_meta_sz
     );
 
+    bool is_consistent = true;
+
+    if (cur_block->next_block != nullptr) {
+        auto *next = reinterpret_cast<block_metadata *>(cur_block->next_block);
+        if (next->prev_block != cur_block) {
+            is_consistent = false;
+        }
+    }
+
+    if (cur_block->prev_block != nullptr) {
+        auto *prev = reinterpret_cast<block_metadata *>(cur_block->prev_block);
+        if (prev->next_block != cur_block) {
+            is_consistent = false;
+        }
+    }
+
+    if (!is_consistent) {
+        throw std::logic_error("Pointer points to the middle of a block or memory is corrupted");
+    }
+
     if (cur_block->trusted_memory != _trusted_memory) {
         return;
     }
@@ -326,7 +346,7 @@ allocator_boundary_tags::boundary_iterator &allocator_boundary_tags::boundary_it
 {
     if (_occupied_ptr) {
         auto *block = reinterpret_cast<block_metadata *>(_occupied_ptr);
-        _occupied = block->prev_block;
+        _occupied_ptr = block->prev_block;
         if (_occupied_ptr) {
             auto *prev = reinterpret_cast<block_metadata *>(_occupied_ptr);
             _occupied = is_occupied(prev->size_and_flag);

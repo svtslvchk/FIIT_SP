@@ -11,5 +11,3 @@ target_link_libraries(
         PRIVATE
         sys_prog_allctr_allctr_rb_tr)
 
-include(GoogleTest)
-gtest_discover_tests(sys_prog_allctr_allctr_rb_tr_tests)

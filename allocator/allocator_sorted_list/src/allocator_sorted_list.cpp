@@ -174,10 +174,36 @@ void allocator_sorted_list::do_deallocate_sm(
     auto *meta = reinterpret_cast<allocator_metadata *>(_trusted_memory);
     std::lock_guard<std::mutex> lock(meta->sync);
 
-    if (at < _trusted_memory || at >= reinterpret_cast<std::byte *>(_trusted_memory) + meta->total_size) {
-        throw std::logic_error("Deallocation of pointer not managed by this allocator");
+    std::byte *at_ptr = static_cast<std::byte *>(at);
+    std::byte *pool_start = reinterpret_cast<std::byte *>(_trusted_memory) + align_size(sizeof(allocator_metadata));
+    std::byte *pool_end = reinterpret_cast<std::byte *>(_trusted_memory) + meta->total_size;
+
+    if (at_ptr < pool_start || at_ptr >= pool_end) {
+        throw std::logic_error("Pointer not managed by this allocator");
     }
 
+    std::byte *curr_scan = pool_start;
+    bool valid_pointer = false;
+    size_t block_ndr_sz = align_size(sizeof(block_metadata));
+    while (curr_scan < pool_end) {
+        auto *block = reinterpret_cast<block_metadata *>(curr_scan);
+        void *valid_data_start = curr_scan + block_ndr_sz; 
+
+        if (valid_data_start == at) {
+            valid_pointer = true;
+            break;
+        }
+        if (valid_data_start > at) {
+            break;
+        }
+
+        curr_scan += block->size;
+    }
+
+    if (!valid_pointer) {
+        throw std::logic_error("Invalid pointer deallocation: not a start of a block");
+    }
+    
     auto *block_to_free = reinterpret_cast<block_metadata *>(
         reinterpret_cast<std::byte *>(at) - align_size(sizeof(block_metadata))
     );
@@ -306,7 +332,6 @@ allocator_sorted_list::sorted_iterator allocator_sorted_list::end() const noexce
 {
     return sorted_iterator(nullptr);
 }
-
 
 bool allocator_sorted_list::sorted_free_iterator::operator==(
         const allocator_sorted_list::sorted_free_iterator & other) const noexcept
