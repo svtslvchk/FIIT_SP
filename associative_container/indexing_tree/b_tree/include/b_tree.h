@@ -1603,16 +1603,13 @@ template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t
 bool compare_pairs(const typename B_tree<tkey, tvalue, compare, t>::tree_data_type &lhs,
                    const typename B_tree<tkey, tvalue, compare, t>::tree_data_type &rhs)
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "bool compare_pairs(const typename B_tree<tkey, tvalue, compare, t>::tree_data_type &lhs,\n"
-                          "const typename B_tree<tkey, tvalue, compare, t>::tree_data_type &rhs)", "your code should be here...");
+    return compare_keys<tkey, tvalue, compare, t>(lhs.first, rhs.first);
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 bool compare_keys(const tkey &lhs, const tkey &rhs)
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t >\n"
-                          "bool compare_keys(const tkey &lhs, const tkey &rhs)", "your code should be here...");
+    return compare{}(lhs, rhs);
 }
 
 #endif
