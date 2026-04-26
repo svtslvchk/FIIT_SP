@@ -1449,7 +1449,25 @@ typename B_tree<tkey, tvalue, compare, t>::btree_const_iterator B_tree<tkey, tva
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 bool B_tree<tkey, tvalue, compare, t>::contains(const tkey& key) const
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t> bool B_tree<tkey, tvalue, compare, t>::contains(const tkey& key) const", "your code should be here...");
+    if (!_root) {
+        return false;
+    }
+
+    btree_node* const* cur = &_root;
+    while (*cur) {
+        size_t i = btree_details::find_index_in_node(*cur, key, _comparator);
+        if (i < (*cur)->_keys.size() && !_comparator(key, reinterpret_cast<const tkey &>((*cur)->_keys[i]))) {
+            return true;
+        }
+
+        if ((*cur)->_pointers.empty()) {
+            break;
+        }
+
+        cur = &((*cur)->_pointers[i]);
+    }
+
+    return false;
 }
 
 // endregion lookup implementation
