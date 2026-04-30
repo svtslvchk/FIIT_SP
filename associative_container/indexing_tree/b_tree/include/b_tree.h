@@ -52,6 +52,10 @@ private:
 
     void r_clear(btree_node *node) noexcept;
 
+    void split_child(btree_node *parent, std::size_t index);
+
+    void insert_non_full(btree_node *node, tree_data_type &&data);
+
 public:
 
     // region constructors declaration
@@ -1496,21 +1500,88 @@ void B_tree<tkey, tvalue, compare, t>::clear() noexcept
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
+void B_tree<tkey, tvalue, compare, t>::split_child(btree_node *parent, std::size_t index) {
+    btree_node *y = parent->_pointers[index];
+    btree_node *z = new btree_node();
+
+    for (std::size_t i = 0; i < t - 1; i++) {
+        z->_keys.push_pack(std::move(y->_keys[i + t]));
+    }
+
+    z->_keys.resize(t - 1);
+
+    if (!y->_pointers.empty()) {
+        for (std::size_t i = 0; i < t; i++) {
+            z->_pointers.push_back(y->_pointers[i + t]);
+        }
+
+        y->_pointers.resize(t);
+    }
+
+    parent->_pointers.insert(parent->_pointers.begin() + index + 1, z);
+    parent->_keys.insert(parent->_keys.begin() + index, std::move(y->_keys[t - 1]));
+}
+
+template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
+void B_tree<tkey, tvalue, compare, t>::insert_non_full(btree_node *node, tree_data_type &&data) {
+    int i = node->_keys.size() - 1;
+    const auto &cmp = static_cast<const compare &>(*this);
+
+    if (node->_pointers.empty()) {
+        node->_keys.push_back(std::move(data));
+        while (i >= 0 && cmp(data.first, reinterpret_cast<const tkey &>(node->_keys[i].first))) {
+            i--;
+        }
+
+        i++;
+
+        if (node->_pointers[i]->_keys.size() == 2 * t - 1) {
+            split_child(node, i);
+            if (cmp(reinterpret_cast<const tkey &>(node->_keys[i].first), data.first)) {
+                i++;
+            }
+        }
+
+        insert_non_full(node->_pointers[i], std::move(data));
+    }
+}
+
+template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 std::pair<typename B_tree<tkey, tvalue, compare, t>::btree_iterator, bool>
 B_tree<tkey, tvalue, compare, t>::insert(const tree_data_type& data)
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "std::pair<typename B_tree<tkey, tvalue, compare, t>::btree_iterator, bool>\n"
-                          "B_tree<tkey, tvalue, compare, t>::insert(const tree_data_type& data)", "your code should be here...");
+    tree_data_type copy = data;
+    return insert(std::move(copy));
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 std::pair<typename B_tree<tkey, tvalue, compare, t>::btree_iterator, bool>
 B_tree<tkey, tvalue, compare, t>::insert(tree_data_type&& data)
 {
-    throw not_implemented("template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>\n"
-                          "std::pair<typename B_tree<tkey, tvalue, compare, t>::btree_iterator, bool>\n"
-                          "B_tree<tkey, tvalue, compare, t>::insert(tree_data_type&& data)", "your code should be here...");
+    auto it = find(data.first);
+    if (it != end()) {
+        return {it, false};
+    }
+
+    if (!_root) {
+        _root = new btree_node();
+        _root->_keys.push_back(std::move(data));
+        _size = 1;
+        return {find(reinterpret_cast<const tkey &>(_root->_keys[0])), true};
+    }
+
+    if (_root->_keys.size() == 2 * t - 1) {
+        btree_node *new_root = new btree_node();
+        new_root->_pointers.push_back(_root);
+        split_child(new_root, 0);
+        _root = new_root;
+    }
+
+    const tkey &key_to_find = data.first;
+    insert_non_full(_root, std::move(data));
+    _size++;
+
+    return {find(key_to_find, true)};
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
