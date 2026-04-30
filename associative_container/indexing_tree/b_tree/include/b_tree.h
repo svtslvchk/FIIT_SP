@@ -500,7 +500,7 @@ B_tree<tkey, tvalue, compare, t>& B_tree<tkey, tvalue, compare, t>::operator=(B_
 namespace btree_details {
 
     template<typename RefType, typename NodeType>
-    RefType get_node_data(const std::pair<NodeType* const*, size_t> &top) {
+    RefType get_node_data(const std::pair<NodeType *, size_t> &top) {
         return reinterpret_cast<RefType>((*top.first)->_keys[top.second]);
     }
 
@@ -616,7 +616,8 @@ template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t
 typename B_tree<tkey, tvalue, compare, t>::btree_iterator::reference
 B_tree<tkey, tvalue, compare, t>::btree_iterator::operator*() const noexcept
 {
-    return btree_details::get_node_data<reference>(_path.top());
+    using node_ptr_type = btree_node*;
+    return btree_details::get_node_data<reference, node_ptr_type>(_path.top());
 }
 
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
@@ -759,7 +760,7 @@ template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t
 typename B_tree<tkey, tvalue, compare, t>::btree_const_iterator&
 B_tree<tkey, tvalue, compare, t>::btree_const_iterator::operator--()
 {
-    btree_details::decerement_logic(_path, _index);
+    btree_details::decrement_logic(_path, _index);
     return *this;
 }
 
@@ -1124,7 +1125,7 @@ typename B_tree<tkey, tvalue, compare, t>::btree_iterator B_tree<tkey, tvalue, c
 
     btree_node **cur = &_root;
     while (*cur) {
-        it._path.push({reinterpret_cast<btree_node* const*>(cur), 0});
+        it._path.push({const_cast<btree_node **>(cur), 0});
         if ((*cur)->_pointers.empty()) {
             break;
         }
@@ -1222,7 +1223,7 @@ typename B_tree<tkey, tvalue, compare, t>::btree_const_reverse_iterator B_tree<t
     btree_node* const* cur = &_root;
     while (*cur != nullptr) {
         size_t last_key_index = (*cur)->_keys.size() - 1;
-        it._path.push({curr, last_key_index});
+        it._path.push({cur, last_key_index});
         if ((*cur)->_pointers.empty()) {
             break;
         }
@@ -1271,16 +1272,16 @@ bool B_tree<tkey, tvalue, compare, t>::empty() const noexcept
 template<typename tkey, typename tvalue, comparator<tkey> compare, std::size_t t>
 typename B_tree<tkey, tvalue, compare, t>::btree_iterator B_tree<tkey, tvalue, compare, t>::find(const tkey& key)
 {
-    btree_iterator it;
     if (!_root) {
         return end();
     }
 
+    btree_iterator it;
     btree_node **cur = &_root;
     while (*cur) {
-        size_t i = btree_details::find_index_in_node(*curr, key, _comparator);
-        it._path.push({reinterpret_cast<btree_node* const*>(cur), i});
-        if (i < (*cur)->_keys.size() && !_comparator(key, reinterpret_cast<const tkey &>((*cur)->_keys[i]))) {
+        size_t i = btree_details::find_index_in_node(*cur, key, static_cast<const compare&>(*this));
+        it._path.push({const_cast<btree_node **>(cur), i});
+        if (i < (*cur)->_keys.size() && !static_cast<const compare&>(*this)(key, reinterpret_cast<const tkey &>((*cur)->_keys[i]))) {
             it._index = i;
             return it;
         }
@@ -1305,7 +1306,7 @@ typename B_tree<tkey, tvalue, compare, t>::btree_const_iterator B_tree<tkey, tva
 
     btree_node* const* cur = &_root;
     while (*cur) {
-        size_t i = btree_details::find_index_in_node(*curr, key, _comparator);
+        size_t i = btree_details::find_index_in_node(*cur, key, static_cast<const compare&>(*this));
         it._path.push({reinterpret_cast<btree_node* const*>(cur), i});
         if (i < (*cur)->_keys.size() && !_comparator(key, reinterpret_cast<const tkey &>((*cur)->_keys[i]))) {
             it._index = i;
@@ -1333,7 +1334,7 @@ typename B_tree<tkey, tvalue, compare, t>::btree_iterator B_tree<tkey, tvalue, c
     btree_node **cur = &_root;
     btree_iterator last_ge = end();
     while (*cur) {
-        size_t i = btree_details::find_index_in_node(*curr, key, _comparator);
+        size_t i = btree_details::find_index_in_node(*cur, key, static_cast<const compare&>(*this));
         it._path.push({reinterpret_cast<btree_node* const*>(cur), i});
         if (i < (*cur)->_keys.size() && !_comparator(key, reinterpret_cast<const tkey &>((*cur)->_keys[i]))) {
             it._index = i;
@@ -1366,7 +1367,7 @@ typename B_tree<tkey, tvalue, compare, t>::btree_const_iterator B_tree<tkey, tva
     btree_node* const* cur = &_root;
     btree_const_iterator last_ge = end();
     while (*cur) {
-        size_t i = btree_details::find_index_in_node(*curr, key, _comparator);
+        size_t i = btree_details::find_index_in_node(*cur, key, static_cast<const compare&>(*this));
         it._path.push({reinterpret_cast<btree_node* const*>(cur), i});
         if (i < (*cur)->_keys.size() && !_comparator(key, reinterpret_cast<const tkey &>((*cur)->_keys[i]))) {
             it._index = i;
@@ -1399,7 +1400,7 @@ typename B_tree<tkey, tvalue, compare, t>::btree_iterator B_tree<tkey, tvalue, c
     btree_node **cur = &_root;
     btree_iterator last_ge = end();
     while (*cur) {
-        size_t i = btree_details::find_upper_index_in_node(*curr, key, _comparator);
+        size_t i = btree_details::find_upper_index_in_node(*cur, key, static_cast<const compare&>(*this));
         it._path.push({reinterpret_cast<btree_node* const*>(cur), i});
 
         if (i < (*cur)->_keys.size()) {
@@ -1428,7 +1429,7 @@ typename B_tree<tkey, tvalue, compare, t>::btree_const_iterator B_tree<tkey, tva
     btree_node* const* cur = &_root;
     btree_const_iterator last_ge = end();
     while (*cur) {
-        size_t i = btree_details::find_upper_index_in_node(*curr, key, _comparator);
+        size_t i = btree_details::find_upper_index_in_node(*cur, key, static_cast<const compare&>(*this));
         it._path.push({reinterpret_cast<btree_node* const*>(cur), i});
 
         if (i < (*cur)->_keys.size()) {
@@ -1455,7 +1456,7 @@ bool B_tree<tkey, tvalue, compare, t>::contains(const tkey& key) const
 
     btree_node* const* cur = &_root;
     while (*cur) {
-        size_t i = btree_details::find_index_in_node(*cur, key, _comparator);
+        size_t i = btree_details::find_index_in_node(*cur, key, static_cast<const compare&>(*this));
         if (i < (*cur)->_keys.size() && !_comparator(key, reinterpret_cast<const tkey &>((*cur)->_keys[i]))) {
             return true;
         }
