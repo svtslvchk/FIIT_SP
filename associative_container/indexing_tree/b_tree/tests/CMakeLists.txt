@@ -10,3 +10,6 @@ target_link_libraries(
         sys_prog_assctv_cntnr_indxng_tr_b_tr_tests
         PRIVATE
         sys_prog_assctv_cntnr_indxng_tr_b_tr)
+
+include(GoogleTest)
+gtest_discover_tests(sys_prog_assctv_cntnr_indxng_tr_b_tr_tests)
