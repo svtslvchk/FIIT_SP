@@ -625,7 +625,7 @@ namespace btree_details {
         size_t right = node->_keys.size();
         while (left < right) {
             size_t mid = left + (right - left) / 2;
-            if (comp(reinterpret_cast<const tkey &>(node->_keys[mid]), key)) {
+            if (comp(node->_keys[mid].first, key)) {
                 left = mid + 1;
             } else {
                 right = mid;
@@ -1579,15 +1579,11 @@ void B_tree<tkey, tvalue, compare, t>::insert_non_full(btree_node *node, tree_da
     if (node->_pointers.empty()) {
         node->_keys.insert(node->_keys.begin() + i, std::move(data));
     } else {
-        if (node->_pointers[i]->_keys.size() == 2 * t - 1) {
-            split_child(node, i);
-
-            if (cmp(reinterpret_cast<const tkey &>(node->_keys[i].first), data.first)) {
-                i++;
-            }
-        }
-
         insert_non_full(node->_pointers[i], std::move(data));
+        
+        if (node->_pointers[i]->_keys.size() == 2 * t) {
+            split_child(node, i);
+        }
     }
 }
 
@@ -1615,15 +1611,15 @@ B_tree<tkey, tvalue, compare, t>::insert(tree_data_type&& data)
         return {find(reinterpret_cast<const tkey &>(_root->_keys[0])), true};
     }
 
-    if (_root->_keys.size() == 2 * t - 1) {
+    const tkey &key_to_find = data.first;
+    insert_non_full(_root, std::move(data));
+
+    if (_root->_keys.size() == 2 * t) {
         btree_node *new_root = new btree_node();
         new_root->_pointers.push_back(_root);
         split_child(new_root, 0);
         _root = new_root;
     }
-
-    const tkey &key_to_find = data.first;
-    insert_non_full(_root, std::move(data));
     _size++;
 
     return {find(key_to_find), true};
